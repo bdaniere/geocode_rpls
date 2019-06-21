@@ -177,10 +177,8 @@ class GeocodeHlm:
 
 class Building:
 
-    def __init__(self, user_place_name):
-        import pdb
-        pdb.set_trace()
-        self.place_name = str(user_place_name.decode('utf-8-sig'))
+    def __init__(self):
+        self.place_name = str(param["data"]["if_osm"]["territory_name"]).decode('utf-8-sig')
 
         self.gdf_building = gpd.GeoDataFrame()
         self.gdf_area = gpd.GeoDataFrame()
@@ -210,15 +208,28 @@ class Building:
         Export to shp & formatting the 3 GeoDataFrame
         """
         logging.info("start formatting osm data")
-        self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
+
+        if self.gdf_building.crs != {"init" : "epsg:4326"}:
+            self.gdf_building = self.gdf_building.to_crs({"init" : "epsg:4326"})
+
         if {'id'}.issubset(self.gdf_building.columns) is False:
             self.gdf_building['id'] = self.gdf_building.index
 
+        self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
         self.gdf_building = self.gdf_building[['id', 'geometry']]
+
 
         static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
     def run(self):
+        """
+        Main class method :
+        Read the user choice and import building data
+             - read a building shapefile
+             - import data from OSM
+             - import data from PostGis Database
+        :return: building GeoDataFrame (epsg : 4326)
+        """
         # Process building with shp
         if param["data"]["osm_shp_postgis_building"] == "shp":
             logging.info("Start process with specified building shapefile")
