@@ -1,0 +1,24 @@
+{
+  "global" :
+  {
+    "epsg" : 2154
+  },
+
+  "data":
+  {
+    "csv_hlm" : "C:/Users/bdaniere/Desktop/Perso/Geocoder_RPLS/input_data/HLM_Narbonne_seule.csv",
+    "osm_shp_postgis_building" : "shp",
+
+    "if_osm" :
+      {"territory_name" : "Narbonne,France"},
+    "if_shp" :
+    {
+       "shp_building" : "C:/Users/bdaniere/Desktop/Perso/Geocoder_RPLS/input_data/Narbonne_building_osm.shp",
+       "shp_building_epsg" : 4326
+    },
+    "if_postgis":
+    {
+
+    }
+  }
+}
