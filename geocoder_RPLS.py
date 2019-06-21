@@ -207,19 +207,29 @@ class Building:
         Filter building by territory (gdf_area) & drop 'source' field
         Export to shp & formatting the 3 GeoDataFrame
         """
-        logging.info("start formatting osm data")
+        logging.info("start formatting building data")
 
-        if self.gdf_building.crs != {"init" : "epsg:4326"}:
-            self.gdf_building = self.gdf_building.to_crs({"init" : "epsg:4326"})
+        # Re-projection to epsg 4326
+        logging.info("-- re-project building data")
+        if self.gdf_building.crs != {"init": "epsg:4326"}:
+            self.gdf_building = self.gdf_building.to_crs({"init": "epsg:4326"})
 
+        # Add id field
         if {'id'}.issubset(self.gdf_building.columns) is False:
             self.gdf_building['id'] = self.gdf_building.index
 
+        # Clean geometry & filter columns
         self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
         self.gdf_building = self.gdf_building[['id', 'geometry']]
 
+        # export data to shp
+        # - Pertinant dans tout les cas ??
+        # static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
-        static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
+        # Drop small building
+        logging.info("-- drop small building (area < 30 m²)")
+        self.gdf_building = self.gdf_building[self.gdf_building.area > 30]
+
 
     def run(self):
         """

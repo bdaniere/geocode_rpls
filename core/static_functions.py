@@ -59,7 +59,8 @@ def read_shp(gdf_path, gdf_epsg):
     try:
         gdf = gpd.read_file(gdf_path)
         gdf.crs = {"init": "epsg :" + gdf_epsg}
-        gdf = gdf.to_crs({"init": "epsg : 4326"})
+        gdf = gdf.to_crs({"init": "epsg :4326"})
+
     except IOError as ioe:
         logging.warning(ioe)
         sys.exit()
@@ -71,12 +72,11 @@ def import_table(table_name):
     """ Read Postgis Table and return GeoDataFrame
 
     :param table_name: schema.table_name
-    :type con: sqlalchemy.Engine
     """
     con = create_engine()
     gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + table_name, con, geom_col='geom')
     gdf.crs = {'init': 'epsg:' + str(param["data"]["if_postgis"]["epsg"])}
-    gdf = gdf.to_crs({"init": "epsg : 4326"})
+    gdf = gdf.to_crs({"init": "epsg :4326"})
 
     assert type(gdf) == gpd.geodataframe.Geodataframe, "the output file in not a GeoDataFrame"
     return gdf
@@ -90,9 +90,6 @@ def formatting_gdf_for_shp_export(gdf, output_path_and_name):
      """
 
     logging.info('formatting & export GeoDataFrame')
-
-    # import pdb
-    # pdb.set_trace()
 
     gdf = gdf.dropna(axis=1, how='all')
     if {'id'}.issubset(gdf.columns) is False:
