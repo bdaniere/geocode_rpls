@@ -15,6 +15,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
+from sqlalchemy import create_engine
 
 """
 Globals variables 
@@ -28,6 +29,18 @@ param = json.load(json_param)
 """
 Classes / methods / functions 
 """
+
+
+def create_engine():
+    db_name = param["data"]["if_postgis"]["db_name"]
+    username = param["data"]["if_postgis"]["db_username"]
+    password = param["data"]["if_postgis"]["db_password"]
+    port = param["data"]["if_postgis"]["port"]
+    epsg = param["data"]["if_postgis"]["epsg"]
+    host = param["data"]["if_postgis"]["host"]
+    engine = create_engine('postgresql://{}:{}@{}:{}/{}'.format(username, password, host, port, host, db_name))
+    return engine
+
 
 
 def read_shp(gdf_path, gdf_epsg):
@@ -52,13 +65,13 @@ def read_shp(gdf_path, gdf_epsg):
     return gdf
 
 
-def import_table(table_name, con):
+def import_table(table_name):
     """ Read Postgis Table and return GeoDataFrame
 
     :param table_name: schema.table_name
     :type con: sqlalchemy.Engine
     """
-
+    con = create_engine()
     gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + table_name, con, geom_col='geom')
     gdf.crs = {'init': 'epsg:2154'}  # modification possible en fonction des données utilisateur
 

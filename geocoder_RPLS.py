@@ -5,9 +5,8 @@ Created on Tue Jun 19 19:00:00 2019
 @author: bdaniere
 
 La récupération des données OSM avec osmnx pour un territoire conséquent (ville telq que Lyon) est trop chronophage,
-Voir pour utiliser une autre bibliotheque
+Voir pour utiliser une autre bibliotheque / méthodologie
 
-add postgis input building process
 add geometry correction for building (+ drop or merge building - 30m²)
 export adress no geocodé
 
@@ -16,13 +15,11 @@ export adress no geocodé
 import json
 import logging
 import os
-import subprocess
 import sys
 
 import geopandas as gpd
 import osmnx as ox
 import pandas as pd
-
 
 from core import static_functions
 
@@ -134,7 +131,7 @@ class GeocodeHlm:
         #
         # To avoid encoding errors with the API
         self.df_hlm = static_functions.drop_columns(self.df_hlm, {'LIBEPCI', 'EPCI', 'DPEDATE', 'CONV', 'NUMCONV',
-                                                      'FINANAUTRE', 'LIBSEGPATRIM', 'LIBREG', 'DROIT'})
+                                                                  'FINANAUTRE', 'LIBSEGPATRIM', 'LIBREG', 'DROIT'})
 
         self.correct_street_name_time_format()
         self.correct_type_street_is_in_name_street()
@@ -156,10 +153,13 @@ class GeocodeHlm:
         logging.info("Formatting data after geocoding")
         try:
             gdf_hlm = static_functions.drop_columns(gdf_hlm,
-                                        {'REG', 'DEP', 'LIBDEP', 'DEPCOM', 'CODEPOSTAL', 'LIBCOM', 'NUMVOIE', 'NEWLOGT',
-                                         'INDREP', 'TYPVOIE', 'NOMVOIE', 'NUMAPPT', 'NUMBOITE', 'FINAN', 'DATCONV',
-                                         'ESC', 'COULOIR', 'ETAGE', 'COMPLIDENT', 'ENTREE', 'BAT', 'IMMEU', 'COMPLGEO',
-                                         'LIEUDIT', 'QPV', 'SRU_EXPIR', 'SRU_ALINEA'})
+                                                    {'REG', 'DEP', 'LIBDEP', 'DEPCOM', 'CODEPOSTAL', 'LIBCOM',
+                                                     'NUMVOIE', 'NEWLOGT',
+                                                     'INDREP', 'TYPVOIE', 'NOMVOIE', 'NUMAPPT', 'NUMBOITE', 'FINAN',
+                                                     'DATCONV',
+                                                     'ESC', 'COULOIR', 'ETAGE', 'COMPLIDENT', 'ENTREE', 'BAT', 'IMMEU',
+                                                     'COMPLGEO',
+                                                     'LIEUDIT', 'QPV', 'SRU_EXPIR', 'SRU_ALINEA'})
         except ValueError as error:
             print error
 
@@ -175,7 +175,7 @@ class GeocodeHlm:
         self.output_gdf = gdf_hlm
 
 
-class OsmBuilding:
+class Building:
 
     def __init__(self, user_place_name):
         import pdb
@@ -211,14 +211,35 @@ class OsmBuilding:
         """
         logging.info("start formatting osm data")
         self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
-        self.gdf_building['id'] = self.gdf_building.index
+        if {'id'}.issubset(self.gdf_building.columns) is False:
+            self.gdf_building['id'] = self.gdf_building.index
 
         self.gdf_building = self.gdf_building[['id', 'geometry']]
 
         static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
     def run(self):
-        self.recover_osm_building()
+        # Process building with shp
+        if param["data"]["osm_shp_postgis_building"] == "shp":
+            logging.info("Start process with specified building shapefile")
+            self.gdf_building = static_functions.read_shp(param["data"]["if_shp"]["shp_building"],
+                                                          str(param["data"]["if_shp"]["shp_building_epsg"]))
+
+        # Process building with OSM
+        elif param["data"]["osm_shp_postgis_building"] == "osm":
+            logging.info("Start process with osm building")
+            self.recover_osm_building()
+
+        # Process building with Postgis Table
+        elif param["data"]["osm_shp_postgis_building"] == "postgis":
+            logging.info("Start process with specified PostGis building Table")
+            self.gdf_building = static_functions.import_table(param["data"]["if_postgis"]["table_name"])
+
+        # If input param is poorly defined
+        else:
+            logging.warning("the value of the key 'osm_shp_postgis_building' must be 'shp' or 'osm' or 'postgis'")
+            sys.exit()
+
         self.formatting_and_exporting_data()
 
 
@@ -226,21 +247,8 @@ class OsmBuilding:
 PROCESS
 """
 
-if param["data"]["osm_shp_postgis_building"] == "shp":
-    logging.info("Start process with specified building shapefile")
-    gdf_building = static_functions.read_shp(param["data"]["if_shp"]["shp_building"], str(param["data"]["if_shp"]["shp_building_epsg"]))
-    gdf_building = static_functions.clean_gdf_by_geometry(gdf_building)
+building_process = Building()
+building_process.run()
 
-
-elif param["data"]["osm_shp_postgis_building"] == "osm":
-    logging.info("Start process with osm building")
-    osm_process = OsmBuilding(param["data"]["if_osm"]["territory_name"])
-    osm_process.run()
-    gdf_building = osm_process.gdf_building
-
-else:
-    logging.warning("the value of the key 'osm_shp_postgis_building' must be 'shp' or 'osm' or 'postgis'")
-    sys.exit()
-
-hlm = GeocodeHlm(gdf_building)
+hlm = GeocodeHlm(building_process.gdf_building)
 hlm.run()
