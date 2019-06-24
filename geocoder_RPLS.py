@@ -7,8 +7,9 @@ Created on Tue Jun 19 19:00:00 2019
 La récupération des données OSM avec osmnx pour un territoire conséquent (ville telq que Lyon) est trop chronophage,
 Voir pour utiliser une autre bibliotheque / méthodologie
 
-add geometry correction for building (+ drop or merge building - 30m²)
+
 export adress no geocodé
+
 
 """
 
@@ -18,9 +19,9 @@ import os
 import sys
 
 import geopandas as gpd
-import osmnx as ox
 import pandas as pd
 
+from core import import_building
 from core import static_functions
 
 """
@@ -92,15 +93,51 @@ class GeocodeHlm:
         """
         The input file shows all the addresses corresponding to HLMs
         grouping addresses to avoid duplication / limit processing time thereafter
+        recovery of number and address area by location
         """
 
-        count_address_before = self.df_hlm.count()[0]
-        self.df_hlm = self.df_hlm.sort_values("NOMVOIE", ascending=False)
-        self.df_hlm = self.df_hlm.drop_duplicates(['NUMVOIE', 'INDREP', 'TYPVOIE', 'NOMVOIE', 'CODEPOSTAL', 'LIBCOM'],
-                                                  keep='first')
+        drop_col = ['NUMVOIE', 'INDREP', 'TYPVOIE', 'NOMVOIE', 'CODEPOSTAL', 'LIBCOM']
+        df_hlm = self.df_hlm.copy()
 
-        drop_address_duplicate = count_address_before - self.df_hlm.count()[0]
-        logging.info("Drop duplicate address : {} address delete".format(drop_address_duplicate))
+        def count_duplicate_value_before_drop(df):
+            """ Group by for recover sum of addresses & living space by location """
+            df['nb'] = 1
+            df['index'] = df.index
+
+            df['temp_address'] = df.apply(
+                lambda row: str(row.NUMVOIE) + ' ' + str(row.INDREP) + ' ' + str(row.TYPVOIE) + ' ' + str(
+                    row.NOMVOIE) + ' ' + str(row.CODEPOSTAL) + ' ' + str(row.LIBCOM), axis=1)
+
+            nb_group_by = df.groupby('temp_address')["nb"].apply(lambda x: x.astype(int).sum())
+            surface_group_by = df.groupby('temp_address')["SURFHAB"].apply(lambda x: x.astype(int).sum())
+
+            assert type(df) == pd.DataFrame
+            return df, nb_group_by, surface_group_by
+
+        def drop_duplicate(df):
+            """ Drop duplicates address, based on drop_col list """
+            count_address_before = df.count()[0]
+            df = df.sort_values("NOMVOIE", ascending=False)
+            df = df.drop_duplicates(drop_col, keep='first')
+
+            drop_address_duplicate = count_address_before - df.count()[0]
+            logging.info("Drop duplicate address : {} address delete".format(drop_address_duplicate))
+
+            return df
+
+        def update_nb_and_surface_column(df, nb_group_by, surface_group_by):
+            df.index = df.temp_address
+            df.update(pd.DataFrame(nb_group_by))
+            df.update(surface_group_by)
+
+            df.index = df['index']
+            df = df.drop(columns=["temp_address", "index"])
+
+            return df
+
+        df_hlm, nb_unique_address, nb_unique_address_surface = count_duplicate_value_before_drop(df_hlm)
+        df_hlm = drop_duplicate(df_hlm)
+        self.df_hlm = update_nb_and_surface_column(df_hlm, nb_unique_address, nb_unique_address_surface)
 
     def patch_before_export(self):
         """
@@ -121,9 +158,7 @@ class GeocodeHlm:
                 self.df_hlm = static_functions.drop_value_in_column(self.df_hlm, geocoding_cols, 'nan', '')
 
     def correct_hlm_csv(self):
-        """
-        grouping input data correction functions
-        """
+        """ grouping input data correction functions """
 
         logging.info("START csv HLM pretreatment")
         pd.options.mode.chained_assignment = None
@@ -175,101 +210,45 @@ class GeocodeHlm:
         self.output_gdf = gdf_hlm
 
 
-class Building:
+def init_building_gdf():
+    """
+    Main class method :
+    Read the user choice and import building data
+         - read a building shapefile
+         - import data from OSM
+         - import data from PostGis Database
+    :return: building GeoDataFrame (epsg : 4326)
+    """
+    # Process building with shp
+    if param["data"]["osm_shp_postgis_building"] == "shp":
+        logging.info("Start process with specified building shapefile")
+        building_process = import_building.ShpBuilding()
+        building_process.run()
 
-    def __init__(self):
-        self.place_name = str(param["data"]["if_osm"]["territory_name"]).decode('utf-8-sig')
+    # Process building with OSM
+    elif param["data"]["osm_shp_postgis_building"] == "osm":
+        logging.info("Start process with osm building")
+        building_process = import_building.OsmBuilding()
+        building_process.run()
 
-        self.gdf_building = gpd.GeoDataFrame()
-        self.gdf_area = gpd.GeoDataFrame()
+    # Process building with Postgis Table
+    elif param["data"]["osm_shp_postgis_building"] == "postgis":
+        logging.info("Start process with specified PostGis building Table")
+        building_process = import_building.PostGisBuilding()
+        building_process.run()
 
-    def recover_osm_building(self):
-        """
-        Recover area, building & road from OpenStreetMap, based of a name of locality
-        :return: 2 GeoDataFrame (epsg: 4326) : gdf_area, gdf_building
-        """
+    # If input param is poorly defined
+    else:
+        logging.warning("the value of the key 'osm_shp_postgis_building' must be 'shp' or 'osm' or 'postgis'")
+        sys.exit()
 
-        logging.info("data recovery from OSM")
-
-        logging.info("-- recover territory")
-        self.gdf_area = ox.gdf_from_place(self.place_name)
-        assert self.gdf_area.count().max > 0, "No territory name {}".format(self.place_name)
-
-        logging.info("-- recover building")
-        try:
-            self.gdf_building = ox.footprints.footprints_from_place(place=self.place_name)
-        except ox.core.EmptyOverpassResponse():
-            logging.error("-- EmptyOverpassResponse -- ")
-            sys.exit()
-
-    def formatting_and_exporting_data(self):
-        """
-        Filter building by territory (gdf_area) & drop 'source' field
-        Export to shp & formatting the 3 GeoDataFrame
-        """
-        logging.info("start formatting building data")
-
-        # Re-projection to epsg 4326
-        logging.info("-- re-project building data")
-        if self.gdf_building.crs != {"init": "epsg:4326"}:
-            self.gdf_building = self.gdf_building.to_crs({"init": "epsg:4326"})
-
-        # Add id field
-        if {'id'}.issubset(self.gdf_building.columns) is False:
-            self.gdf_building['id'] = self.gdf_building.index
-
-        # Clean geometry & filter columns
-        self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
-        self.gdf_building = self.gdf_building[['id', 'geometry']]
-
-        # export data to shp
-        # - Pertinant dans tout les cas ??
-        # static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
-
-        # Drop small building
-        logging.info("-- drop small building (area < 30 m²)")
-        self.gdf_building = self.gdf_building[self.gdf_building.area > 30]
-
-
-    def run(self):
-        """
-        Main class method :
-        Read the user choice and import building data
-             - read a building shapefile
-             - import data from OSM
-             - import data from PostGis Database
-        :return: building GeoDataFrame (epsg : 4326)
-        """
-        # Process building with shp
-        if param["data"]["osm_shp_postgis_building"] == "shp":
-            logging.info("Start process with specified building shapefile")
-            self.gdf_building = static_functions.read_shp(param["data"]["if_shp"]["shp_building"],
-                                                          str(param["data"]["if_shp"]["shp_building_epsg"]))
-
-        # Process building with OSM
-        elif param["data"]["osm_shp_postgis_building"] == "osm":
-            logging.info("Start process with osm building")
-            self.recover_osm_building()
-
-        # Process building with Postgis Table
-        elif param["data"]["osm_shp_postgis_building"] == "postgis":
-            logging.info("Start process with specified PostGis building Table")
-            self.gdf_building = static_functions.import_table(param["data"]["if_postgis"]["table_name"])
-
-        # If input param is poorly defined
-        else:
-            logging.warning("the value of the key 'osm_shp_postgis_building' must be 'shp' or 'osm' or 'postgis'")
-            sys.exit()
-
-        self.formatting_and_exporting_data()
+    return building_process
 
 
 """
 PROCESS
 """
-
-building_process = Building()
-building_process.run()
+building_process = init_building_gdf()
 
 hlm = GeocodeHlm(building_process.gdf_building)
 hlm.run()

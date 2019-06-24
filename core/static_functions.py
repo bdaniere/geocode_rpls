@@ -45,40 +45,15 @@ def create_engine():
     return engine
 
 
-def read_shp(gdf_path, gdf_epsg):
-    """
-    Read shapefile and transform to GeoDataFrame
-
-    :param gdf_path: path to shp building
-    :param gdf_epsg: epsg code of shp building
-    :return: Building GeoDataFrame (epsg: 4326)
-    """
-    logging.info("-- Read shp : " + gdf_path.split('/')[-1])
-    assert gdf_path.split('.')[-1] == 'shp', "the value of the key 'shp_building' must be a shapeflie"
-
-    try:
-        gdf = gpd.read_file(gdf_path)
-        gdf.crs = {"init": "epsg :" + gdf_epsg}
-        gdf = gdf.to_crs({"init": "epsg :4326"})
-
-    except IOError as ioe:
-        logging.warning(ioe)
-        sys.exit()
-
-    return gdf
-
-
-def import_table(table_name):
-    """ Read Postgis Table and return GeoDataFrame
-
-    :param table_name: schema.table_name
-    """
+def import_table():
+    """ Read Postgis Table and return GeoDataFrame  """
     con = create_engine()
-    gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + table_name, con, geom_col='geom')
+    gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + param["data"]["if_postgis"]["table_name"], con,
+                                        geom_col='geom')
     gdf.crs = {'init': 'epsg:' + str(param["data"]["if_postgis"]["epsg"])}
     gdf = gdf.to_crs({"init": "epsg :4326"})
 
-    assert type(gdf) == gpd.geodataframe.Geodataframe, "the output file in not a GeoDataFrame"
+    assert type(gdf) == gpd.geodataframe.GeoDataFrame, "the output file in not a GeoDataFrame"
     return gdf
 
 
