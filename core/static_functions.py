@@ -15,6 +15,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
+from sqlalchemy import create_engine
 
 """
 Globals variables 
@@ -30,39 +31,29 @@ Classes / methods / functions
 """
 
 
-def read_shp(gdf_path, gdf_epsg):
+def create_engine():
     """
-    Read shapefile and transform to GeoDataFrame
-
-    :param gdf_path: path to shp building
-    :param gdf_epsg: epsg code of shp building
-    :return: Building GeoDataFrame
+    Create SqlAlchemy Engine with user parameters
+    :return: SqlAlchemy Engine
     """
-    logging.info("-- Read shp : " + gdf_path.split('/')[-1])
-    assert gdf_path.split('.')[-1] == 'shp', "the value of the key 'shp_building' must be a shapeflie"
-
-    try:
-        gdf = gpd.read_file(gdf_path)
-        gdf.crs = {"init": "epsg :" + gdf_epsg}
-        gdf.crs = {"init": "epsg : 4326"}
-    except IOError as ioe:
-        logging.warning(ioe)
-        sys.exit()
-
-    return gdf
+    db_name = param["data"]["if_postgis"]["db_name"]
+    username = param["data"]["if_postgis"]["db_username"]
+    password = param["data"]["if_postgis"]["db_password"]
+    port = param["data"]["if_postgis"]["port"]
+    host = param["data"]["if_postgis"]["host"]
+    engine = create_engine('postgresql://{}:{}@{}:{}/{}'.format(username, password, host, port, host, db_name))
+    return engine
 
 
-def import_table(table_name, con):
-    """ Read Postgis Table and return GeoDataFrame
+def import_table():
+    """ Read Postgis Table and return GeoDataFrame  """
+    con = create_engine()
+    gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + param["data"]["if_postgis"]["table_name"], con,
+                                        geom_col='geom')
+    gdf.crs = {'init': 'epsg:' + str(param["data"]["if_postgis"]["epsg"])}
+    gdf = gdf.to_crs({"init": "epsg :4326"})
 
-    :param table_name: schema.table_name
-    :type con: sqlalchemy.Engine
-    """
-
-    gdf = gpd.GeoDataFrame.from_postgis("SELECT * FROM " + table_name, con, geom_col='geom')
-    gdf.crs = {'init': 'epsg:2154'}  # modification possible en fonction des données utilisateur
-
-    assert type(gdf) == gpd.geodataframe.Geodataframe, "the output file in not a GeoDataFrame"
+    assert type(gdf) == gpd.geodataframe.GeoDataFrame, "the output file in not a GeoDataFrame"
     return gdf
 
 
@@ -74,9 +65,6 @@ def formatting_gdf_for_shp_export(gdf, output_path_and_name):
      """
 
     logging.info('formatting & export GeoDataFrame')
-
-    # import pdb
-    # pdb.set_trace()
 
     gdf = gdf.dropna(axis=1, how='all')
     if {'id'}.issubset(gdf.columns) is False:
@@ -112,8 +100,6 @@ def clean_gdf_by_geometry(gdf):
     """ Clean a GeoDataFrame : drop null / invalid / empty geometry """
 
     logging.info("drop null & invalid & duplicate geometry \n")
-    if {'id'}.issubset(gdf.columns) is False:
-        gdf['id'] = gdf.index
 
     # reset index for avoid geometry series
     gdf = gdf.reset_index()

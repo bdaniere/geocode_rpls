@@ -18,7 +18,13 @@
     },
     "if_postgis":
     {
-
+        "db_name" : "bd_name",
+        "table_name" : "schema.name",
+        "db_username" : "username",
+        "db_password" :  "paswword",
+        "port" : "5432",
+        "epsg" : "2154",
+        "host" : "localhost"
     }
   }
 }
