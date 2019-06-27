@@ -4,13 +4,6 @@ Created on Tue Jun 19 19:00:00 2019
 
 @author: bdaniere
 
-La récupération des données OSM avec osmnx pour un territoire conséquent (ville telq que Lyon) est trop chronophage,
-Voir pour utiliser une autre bibliotheque / méthodologie
-
-
-export adress no geocodé
-
-
 """
 
 import json
@@ -20,7 +13,10 @@ import sys
 
 import geopandas as gpd
 import pandas as pd
+from bokeh.layouts import layout
+from bokeh.plotting import output_file, show
 
+from core import diagram_generator
 from core import import_building
 from core import static_functions
 
@@ -41,12 +37,17 @@ ch_output = ch_dir + "/output/"
 class GeocodeHlm:
 
     def __init__(self, init_gdf_building):
+        # variables for export bokeh
+        self.dict_error = {}
+        self.dict_count_entity = {}
+
         self.epsg = param["global"]["epsg"]
         self.output_gdf = gpd.GeoDataFrame()
 
         # Read RPLS csv file
         assert param["data"]["csv_hlm"].split('.')[-1] == "csv", "the value of the key 'csv_hlm' must be a csv file"
         self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';')
+        self.dict_count_entity["count init adress"] = self.df_hlm.count().max()
 
         # Read GeoDataFrame building
         self.gdf_building = init_gdf_building
@@ -61,6 +62,7 @@ class GeocodeHlm:
 
         self.df_hlm.NUMVOIE = self.df_hlm.NUMVOIE.astype(str)
         num_street_time_index = self.df_hlm.index[self.df_hlm.NUMVOIE.str.contains('AM|AP') == True]
+        self.dict_error["time format error"] = len(num_street_time_index)
         logging.info(' correct {} entity with time NUMVOIE '.format(len(num_street_time_index)))
 
         for time_street_number in num_street_time_index:
@@ -87,6 +89,7 @@ class GeocodeHlm:
             except TypeError:
                 # Error caused by nan value in cut_name_list
                 pass
+        self.dict_error["duplicate street name"] = type_street_error_count
         logging.info(' correct {} entity with duplicate street type '.format(type_street_error_count))
 
     def drop_duplicate_address(self):
@@ -101,6 +104,7 @@ class GeocodeHlm:
 
         def count_duplicate_value_before_drop(df):
             """ Group by for recover sum of addresses & living space by location """
+
             df['nb'] = 1
             df['index'] = df.index
 
@@ -123,7 +127,7 @@ class GeocodeHlm:
             drop_address_duplicate = count_address_before - df.count()[0]
             logging.info("Drop duplicate address : {} address delete".format(drop_address_duplicate))
 
-            return df
+            return df, drop_address_duplicate
 
         def update_nb_and_surface_column(df, nb_group_by, surface_group_by):
             df.index = df.temp_address
@@ -136,8 +140,11 @@ class GeocodeHlm:
             return df
 
         df_hlm, nb_unique_address, nb_unique_address_surface = count_duplicate_value_before_drop(df_hlm)
-        df_hlm = drop_duplicate(df_hlm)
+        df_hlm, drop_duplicate_count = drop_duplicate(df_hlm)
         self.df_hlm = update_nb_and_surface_column(df_hlm, nb_unique_address, nb_unique_address_surface)
+
+        self.dict_error["duplicate adress (drop)"] = drop_duplicate_count
+        self.dict_count_entity["drop duplicate adress"] = drop_duplicate_count
 
     def patch_before_export(self):
         """
@@ -203,6 +210,8 @@ class GeocodeHlm:
     def run(self):
         self.correct_hlm_csv()
         df_hlm = static_functions.geocode_with_api(ch_output, ch_dir)
+        self.dict_count_entity["count result geocoding"] = df_hlm.count().max()
+
         gdf_hlm = static_functions.geocode_df(df_hlm, 'latitude', 'longitude', 4326)
         gdf_hlm = self.formatting_geocoding_result(gdf_hlm)
 
@@ -212,11 +221,12 @@ class GeocodeHlm:
 
 def init_building_gdf():
     """
-    Main class method :
+    Creation of building GeoDataFrame :
     Read the user choice and import building data
          - read a building shapefile
          - import data from OSM
          - import data from PostGis Database
+
     :return: building GeoDataFrame (epsg : 4326)
     """
     # Process building with shp
@@ -245,10 +255,64 @@ def init_building_gdf():
     return building_process
 
 
+def find_nearest_point(building, hlm_point):
+    pass
+
+
+def generate_dashboard_indicator(obj_geocoder):
+    logging.info('Generate dashboard indicator')
+    output_file(ch_output + "layout_grid.html")
+
+    # Creation of pie chart for result synthesis
+    synthesis_chart = diagram_generator.BokehPieChart(u'Synthèse des résultats du géocodage', obj_geocoder.dict_count_entity, 'data',
+                                                      'toto')
+    synthesis_chart.run()
+
+    # Creation of bar chart for correction synthesis
+    correction_chart = diagram_generator.BokehBarChart(u'Syntèse du pré-traitement des données', obj_geocoder.dict_error,
+                                                       u"Nombre d'entité", "type d'erreur")
+    correction_chart.run()
+
+    # Creation od bar chart for reult_type value
+    result_type_chart = diagram_generator.BokehBarChart(u'Type de précision du résultat du géocodage',
+                                                        obj_geocoder.output_gdf.result_type.value_counts(),
+                                                        u'Résultat du géocodage', "result_type")
+    result_type_chart.run()
+
+    # Creation od bar chart for result_score value
+    result_score_serie = obj_geocoder.output_gdf.result_score.value_counts()
+    result_score_serie = result_score_serie.sort_index(ascending=True)
+    result_score_serie.index = (result_score_serie.index * 100).astype(int).astype(str)
+
+    result_score_chart = diagram_generator.BokehBarChart(u"Répartition de l'indice de fiabilité du géocodage", result_score_serie,
+                                                         u'Résultat du géocodage', "indice de fiabilité du résultat")
+    result_score_chart.run()
+    result_score_chart.add_cumulative_value_line()
+
+    # Creation of Bokhe map with geocoding result
+    synthesis_map = diagram_generator.BokehMap("Cartographie du géocodage", obj_geocoder.output_gdf)
+    synthesis_map.run()
+    synthesis_map.Add_layer_to_map("orange", "green")
+
+    show(layout([[synthesis_chart.chart, correction_chart.chart, result_type_chart.chart], [result_score_chart.chart],
+                 [synthesis_map.chart]], sizing_mode='stretch_width'))
+
+
 """
 PROCESS
 """
-building_process = init_building_gdf()
 
-hlm = GeocodeHlm(building_process.gdf_building)
+main_building_process = init_building_gdf()
+
+hlm = GeocodeHlm(main_building_process.gdf_building)
 hlm.run()
+
+generate_dashboard_indicator(hlm)
+
+# def nearest(row, geom_union, df1, df2, geom1_col='geometry', geom2_col='geometry', src_column=None):
+#     """Find the nearest point and return the corresponding value from specified column."""
+#     # Find the geometry that is closest
+#     nearest = df2[geom2_col] == nearest_points(row[geom1_col], geom_union)[1]
+#     # Get the corresponding value from df2 (matching is based on the geometry)
+#     value = df2[nearest][src_column].get_values()[0]
+#     return value
