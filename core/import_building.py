@@ -13,6 +13,7 @@ import sys
 
 import geopandas as gpd
 import osmnx as ox
+import requests
 
 import static_functions
 
@@ -61,7 +62,6 @@ class Building:
             static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
 
-
 class OsmBuilding(Building):
 
     def __init__(self):
@@ -78,6 +78,7 @@ class OsmBuilding(Building):
         logging.info("data recovery from OSM")
 
         logging.info("-- recover territory")
+
         self.gdf_area = ox.gdf_from_place(self.place_name)
         assert self.gdf_area.count().max > 0, "No territory name {}".format(self.place_name)
 
@@ -89,6 +90,15 @@ class OsmBuilding(Building):
         except ox.core.EmptyOverpassResponse():
             logging.error("-- EmptyOverpassResponse -- ")
             sys.exit()
+
+        except requests.exceptions.ReadTimeout:
+            logging.warning("The first recovery of buildings on the territory failed :" \
+                            "the query to the OSM server has returned an TimeOut error")
+            self.gdf_building = ox.footprints.osm_footprints_download(north=self.gdf_area.bbox_north[0],
+                                                                      south=self.gdf_area.bbox_south[0],
+                                                                      east=self.gdf_area.bbox_east[0],
+                                                                      west=self.gdf_area.bbox_west[0],
+                                                                      footprint_type='building', timeout=600)
 
     def run(self):
         self.recover_osm_area()
@@ -133,5 +143,3 @@ class PostGisBuilding(Building):
     def run(self):
         self.gdf_building = static_functions.import_table()
         self.formatting_and_exporting_data()
-
-
