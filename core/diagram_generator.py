@@ -27,6 +27,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- 
 
 
 class BokehChart:
+    """
+    parent class for specific bokeh.plotting.figure generation
+    also contains the method for formatting the input data
+    """
 
     def __init__(self, title, data, y_label, index_name):
         self.title = title
@@ -37,6 +41,11 @@ class BokehChart:
         self.chart = figure()
 
     def formatting_data(self):
+        """
+        a class method for formatting input data in dictionary or pd.core.series.Series format by renaming columns and adding output chart color information
+        :return: pd.core.series.Series with formatted input data
+        """
+
         if type(self.data) in [dict, pd.core.series.Series]:
             self.data = pd.Series(self.data).reset_index(name='value').rename(columns={'index': self.index_name})
 
@@ -50,11 +59,16 @@ class BokehChart:
 
 
 class BokehPieChart(BokehChart):
+    """  Class inheriting from BokehChart allowing the generation of pie chart  """
 
     def __init__(self, title, data, y_label, index_name):
         BokehChart.__init__(self, title, data, y_label, index_name)
 
     def generate_chart(self):
+        """
+        Generation of the pie chart bokeh.plotting.figure and different display settings
+        :return: Pie chart bokeh.plotting.figure
+        """
         self.data['angle'] = self.data['value'] / self.data['value'].sum() * 2 * pi
 
         self.chart = figure(plot_height=400, title=self.title, toolbar_location=None,
@@ -78,16 +92,28 @@ class BokehPieChart(BokehChart):
 
 
 class BokehBarChart(BokehChart):
+    """  Class inheriting from BokehChart allowing the generation of bar chart  """
 
     def __init__(self, title, data, y_label, index_name):
         BokehChart.__init__(self, title, data, y_label, index_name)
 
     def add_cumulative_value_line(self):
+        """
+        class method to add a curve on the bar chart to display the cumulative population size
+        """
         self.data['cumulative_sum'] = self.data.value.cumsum()
         self.chart.line(self.data[self.index_name], self.data.cumulative_sum, line_width=1,
                         legend="valeur cumulée des indices")
 
     def generate_chart(self):
+        """
+        Generation of the bar chart bokeh.plotting.figure and different display settings
+        differentiation of the output according to the class variable "index_name": if it contains "index",
+        we will add an x_label, its size will be larger, and the scale will be based on 100
+
+        :return: Bar chart bokeh.plotting.figure
+        """
+
         self.data.value = self.data.value / self.data.value.sum()
         self.data.value = self.data.value.apply(lambda x: round(x, 2))
 
