@@ -53,6 +53,9 @@ def import_table():
     gdf.crs = {'init': 'epsg:' + str(param["data"]["if_postgis"]["epsg"])}
     gdf = gdf.to_crs({"init": "epsg :4326"})
 
+    if gdf.geometry.name == 'geom':
+        gdf = gdf.rename(columns={"geom": "geometry"})
+
     assert type(gdf) == gpd.geodataframe.GeoDataFrame, "the output file in not a GeoDataFrame"
     return gdf
 
