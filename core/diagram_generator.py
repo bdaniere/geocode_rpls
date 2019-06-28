@@ -10,7 +10,6 @@ import logging
 from math import pi
 
 import pandas as pd
-from bokeh.io import show
 from bokeh.models import ColumnDataSource
 from bokeh.palettes import Category20c
 from bokeh.plotting import figure
@@ -103,13 +102,13 @@ class BokehBarChart(BokehChart):
                 int(self.data[self.index_name].astype(int).min()), int(self.data[self.index_name].astype(int).max()))],
                                 plot_width=1200, plot_height=400, title=self.title, tooltips=tooltips, tools=tools)
             self.chart.xaxis.axis_label = self.index_name
-            self.chart.vbar(x=self.data[self.index_name], top=self.data.value, width=0.5, color=self.data.color, legend="Part de l'indice")
+            self.chart.vbar(x=self.data[self.index_name], top=self.data.value, width=0.5, color=self.data.color,
+                            legend="Part de l'indice")
 
         else:
             self.chart = figure(title_location="above", x_range=self.data[self.index_name], plot_width=1200,
                                 plot_height=400, title=self.title, tooltips=tooltips, tools=tools)
             self.chart.vbar(x=self.data[self.index_name], top=self.data.value, width=0.5, color=self.data.color)
-
 
         self.chart.title.align = "center"
         self.chart.title.text_font_style = "bold"
@@ -182,19 +181,3 @@ class BokehMap:
     def run(self):
         self.gdf_geometry_to_xy()
         self.create_map_bokeh_figure()
-
-
-"""
-Process
-"""
-
-data = {'60': 9L, '61': 7L, '62': 9L, '63': 26L, '64': 11L, '65': 5L, '66': 5L, '67': 27L, '68': 6L, '69': 20L,
-        '80': 14L, '81': 47L, '86': 35L, '87': 8L, '84': 82L, '85': 54L, '48': 7L, '49': 10L, '44': 1L, '42': 2L,
-        '43': 3L, '82': 47L, '83': 101L, '77': 13L, '76': 31L, '75': 18L, '74': 17L, '73': 49L, '72': 9L, '71': 1L,
-        '70': 10L, '91': 288L, '90': 2L, '93': 740L, '92': 96L, '94': 16L, '79': 45L, '78': 43L, '55': 1L, '54': 14L,
-        '57': 7L, '56': 9L, '50': 2L, '53': 1L, '88': 22L}
-toto = BokehBarChart('Test bar chart', data, 'test', "indice de fiabilité du résultat")
-toto.run()
-toto.add_cumulative_value_line()
-
-show(toto.chart)

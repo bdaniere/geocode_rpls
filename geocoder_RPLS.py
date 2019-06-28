@@ -47,7 +47,9 @@ class GeocodeHlm:
         # Read RPLS csv file
         assert param["data"]["csv_hlm"].split('.')[-1] == "csv", "the value of the key 'csv_hlm' must be a csv file"
         self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';')
+        self.df_hlm = self.df_hlm[self.df_hlm.DEPCOM.isin(param["data"]["list_cod_insee"])]
         self.dict_count_entity["count init adress"] = self.df_hlm.count().max()
+
 
         # Read GeoDataFrame building
         self.gdf_building = init_gdf_building
@@ -255,10 +257,6 @@ def init_building_gdf():
     return building_process
 
 
-def find_nearest_point(building, hlm_point):
-    pass
-
-
 def generate_dashboard_indicator(obj_geocoder):
     logging.info('Generate dashboard indicator')
     output_file(ch_output + "layout_grid.html")
@@ -309,10 +307,3 @@ hlm.run()
 
 generate_dashboard_indicator(hlm)
 
-# def nearest(row, geom_union, df1, df2, geom1_col='geometry', geom2_col='geometry', src_column=None):
-#     """Find the nearest point and return the corresponding value from specified column."""
-#     # Find the geometry that is closest
-#     nearest = df2[geom2_col] == nearest_points(row[geom1_col], geom_union)[1]
-#     # Get the corresponding value from df2 (matching is based on the geometry)
-#     value = df2[nearest][src_column].get_values()[0]
-#     return value

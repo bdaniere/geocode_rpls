@@ -6,13 +6,15 @@ Created on Tue Jun 19 19:00:00 2019
 
 """
 
-import logging
-import sys
 import json
+import logging
 import os
+import sys
 
 import geopandas as gpd
 import osmnx as ox
+import requests
+
 import static_functions
 
 """
@@ -25,7 +27,6 @@ param = json.load(json_param)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 ch_dir = os.getcwd().replace('\\', '/')
 ch_output = ch_dir + "/output/"
-
 
 """ Classes / methods / functions """
 
@@ -57,12 +58,8 @@ class Building:
         self.gdf_building = self.gdf_building[['id', 'geometry']]
 
         # export data to shp
-        # - Pertinant dans tout les cas ??
-        # static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
-
-        # Drop small building
-        logging.info("-- drop small building (area < 30 m²)")
-        self.gdf_building = self.gdf_building[self.gdf_building.area > 30]
+        if param["data"]["osm_shp_postgis_building"] == "osm":
+            static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
 
 class OsmBuilding(Building):
@@ -72,17 +69,20 @@ class OsmBuilding(Building):
         self.gdf_area = gpd.GeoDataFrame()
         self.place_name = str(param["data"]["if_osm"]["territory_name"].decode('utf-8-sig'))
 
-    def recover_osm_building(self):
+    def recover_osm_area(self):
         """
-        Recover area, building & road from OpenStreetMap, based of a name of locality
-        :return: 2 GeoDataFrame (epsg: 4326) : gdf_area, gdf_building
+        Recover area from OpenStreetMap, based of a name of locality
+        :return: GeoDataFrame (epsg: 4326) : gdf_area
         """
 
         logging.info("data recovery from OSM")
 
         logging.info("-- recover territory")
+
         self.gdf_area = ox.gdf_from_place(self.place_name)
         assert self.gdf_area.count().max > 0, "No territory name {}".format(self.place_name)
+
+    def recover_osm_building(self):
 
         logging.info("-- recover building")
         try:
@@ -91,7 +91,17 @@ class OsmBuilding(Building):
             logging.error("-- EmptyOverpassResponse -- ")
             sys.exit()
 
+        except requests.exceptions.ReadTimeout:
+            logging.warning("The first recovery of buildings on the territory failed :" \
+                            "the query to the OSM server has returned an TimeOut error")
+            self.gdf_building = ox.footprints.osm_footprints_download(north=self.gdf_area.bbox_north[0],
+                                                                      south=self.gdf_area.bbox_south[0],
+                                                                      east=self.gdf_area.bbox_east[0],
+                                                                      west=self.gdf_area.bbox_west[0],
+                                                                      footprint_type='building', timeout=600)
+
     def run(self):
+        self.recover_osm_area()
         self.recover_osm_building()
         self.formatting_and_exporting_data()
 
