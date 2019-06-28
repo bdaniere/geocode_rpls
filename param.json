@@ -7,7 +7,8 @@
   "data":
   {
     "csv_hlm" : "C:/Users/bdaniere/Desktop/Perso/Geocoder_RPLS/input_data/HLM_Narbonne_seule.csv",
-    "osm_shp_postgis_building" : "shp",
+    "osm_shp_postgis_building" : "osm",
+    "list_cod_insee" : [11012,11014,11040,11041,11086,11106,11116,11145,11164,11170,11188,11202,11217,11255,11262,11266,11269,11285,11295,11353,11360,11366,11369,11370,11379,11398,11405,11421,11441],
 
     "if_osm" :
       {"territory_name" : "Narbonne,France"},
