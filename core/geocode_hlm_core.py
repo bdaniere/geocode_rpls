@@ -32,6 +32,11 @@ ch_output = ch_dir + "/output/"
 class GeocodeHlm:
 
     def __init__(self, init_gdf_building):
+        """
+        Constructor of GeocodeHlm class
+        :param init_gdf_building: gpd.GeoDataFrame from core.import_building python file
+        """
+
         # variables for export bokeh
         self.dict_error = {}
         self.dict_count_entity = {}
@@ -231,6 +236,10 @@ class GeocodeHlm:
         return gdf_hlm
 
     def run(self):
+        """
+        Execution of the different methods of the class
+        """
+
         self.correct_hlm_csv()
         df_hlm = static_functions.geocode_with_api(ch_output, ch_dir)
         self.dict_count_entity["count result geocoding"] = df_hlm.count().max()

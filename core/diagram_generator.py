@@ -52,7 +52,7 @@ class BokehChart:
         else:
             logging.warning("Input data for chart generation isn't type dict or pd.Series")
 
-        if self.data.count().max() < 45:
+        if self.data.count().max() < 20:
             self.data['color'] = Category20c[self.data.count().max()]
         else:
             self.data['color'] = "red"
@@ -151,11 +151,12 @@ class BokehMap:
     :param gdf: Input GeoDataFrame (Point)
     """
 
-    def __init__(self, title, gdf):
+    def __init__(self, title, gdf, data_name):
         self.data = gdf
         self.data = self.data.to_crs(epsg='3857')
         self.chart = figure()
         self.title = title
+        self.data_name = data_name
 
     def gdf_geometry_to_xy(self):
         """
@@ -199,11 +200,16 @@ class BokehMap:
         self.chart.outline_line_alpha = 0.3
         self.chart.outline_line_color = "navy"
 
+
+
     def Add_layer_to_map(self, fill_color, line_color):
         """ Add data in self.chart"""
         bokeh_data = ColumnDataSource(self.data)
-        self.chart.circle('x', 'y', source=bokeh_data, fill_color=fill_color, line_color=line_color, size=10)
+        self.chart.circle('x', 'y', source=bokeh_data, fill_color=fill_color, line_color=line_color, size=10,
+                          legend=self.data_name)
+
 
     def run(self):
         self.gdf_geometry_to_xy()
         self.create_map_bokeh_figure()
+        self.chart.legend.click_policy = "hide"

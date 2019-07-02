@@ -32,6 +32,10 @@ ch_output = ch_dir + "/output/"
 
 
 class Building:
+    """
+    Parent class for recovering and formatting building data
+    This class mainly contains the method for formatting and exporting the data
+    """
 
     def __init__(self):
         self.gdf_building = gpd.GeoDataFrame()
@@ -65,6 +69,11 @@ class Building:
 class OsmBuilding(Building):
 
     def __init__(self):
+        """
+        Constructor of the class
+        Declaration of the empty GeoDataFrame and the location of the "study area"
+        """
+
         Building.__init__(self)
         self.gdf_area = gpd.GeoDataFrame()
         self.place_name = str(param["data"]["if_osm"]["territory_name"].decode('utf-8-sig'))
@@ -76,13 +85,17 @@ class OsmBuilding(Building):
         """
 
         logging.info("data recovery from OSM")
-
         logging.info("-- recover territory")
 
         self.gdf_area = ox.gdf_from_place(self.place_name)
         assert self.gdf_area.count().max > 0, "No territory name {}".format(self.place_name)
 
     def recover_osm_building(self):
+        """
+         Recover building data from OpenStreetMap, based of a name of locality
+         Or from self.gdf_area bbox if the data weight is too important
+         :return: GeoDataFrame (epsg: 4326) : gdf_area
+         """
 
         logging.info("-- recover building")
         try:
@@ -101,6 +114,10 @@ class OsmBuilding(Building):
                                                                       footprint_type='building', timeout=600)
 
     def run(self):
+        """
+         Execution of the different methods of the class
+         """
+
         self.recover_osm_area()
         self.recover_osm_building()
         self.formatting_and_exporting_data()
@@ -109,6 +126,11 @@ class OsmBuilding(Building):
 class ShpBuilding(Building):
 
     def __init__(self):
+        """
+        Constructor of the class
+        recovery of the path to the data and its EPSG code
+        """
+
         Building.__init__(self)
         self.gdf_path = param["data"]["if_shp"]["shp_building"]
         self.gdf_epsg = param["data"]["if_shp"]["shp_building_epsg"]
@@ -131,6 +153,9 @@ class ShpBuilding(Building):
             sys.exit()
 
     def run(self):
+        """
+         Execution of the different methods of the class
+         """
         self.read_building_shp()
         self.formatting_and_exporting_data()
 
@@ -141,5 +166,9 @@ class PostGisBuilding(Building):
         Building.__init__(self)
 
     def run(self):
+        """
+         Execution of the different methods of the class
+         """
+
         self.gdf_building = static_functions.import_table()
         self.formatting_and_exporting_data()
