@@ -9,6 +9,7 @@ Created on Tue Jun 19 19:00:00 2019
 import logging
 from math import pi
 
+import geopandas as gpd
 import pandas as pd
 from bokeh.models import ColumnDataSource
 from bokeh.palettes import Category20c
@@ -17,7 +18,7 @@ from bokeh.tile_providers import get_provider, Vendors
 from bokeh.transform import cumsum
 
 """
-Globals variables 
+Globals variables activate bd
 """
 # lecture du json
 
@@ -48,14 +49,20 @@ class BokehChart:
 
         if type(self.data) in [dict, pd.core.series.Series]:
             self.data = pd.Series(self.data).reset_index(name='value').rename(columns={'index': self.index_name})
-
         else:
             logging.warning("Input data for chart generation isn't type dict or pd.Series")
 
-        if self.data.count().max() < 20:
-            self.data['color'] = Category20c[self.data.count().max()]
-        else:
-            self.data['color'] = "red"
+        try:
+            if self.data.count().max() == 2:
+                self.data['color'] = Category20c[3][:2]
+            elif self.data.count().max() < 20:
+                self.data['color'] = Category20c[self.data.count().max()]
+            else:
+                self.data['color'] = "red"
+
+        except KeyError:
+            logging.error("Unexpected error when setting chart color")
+            raise
 
 
 class BokehPieChart(BokehChart):
@@ -158,11 +165,19 @@ class BokehMap:
         self.title = title
         self.data_name = data_name
 
-    def gdf_geometry_to_xy(self):
+
+    @staticmethod
+    def gdf_geometry_to_xy(data):
         """
         Transform the self.data.geometry to x & y field
         Drop the initial geometry
+
+        :param data: input gpd.GeoDataFrame (Point) to display the Dashboard cartography box
+        :return: data formatting for displaying in Dashboard cartography box
         """
+
+        assert type(data) == gpd.geodataframe.GeoDataFrame, "input data for generation of" \
+                                                            "Bokeh mapping is not GeoDataFrame type"
 
         def get_point_coords(row, geom, coord_type):
             """Calculates coordinates ('x' or 'y') of a Point geometry"""
@@ -171,9 +186,11 @@ class BokehMap:
             elif coord_type == 'y':
                 return row[geom].y
 
-        self.data['x'] = self.data.apply(get_point_coords, geom='geometry', coord_type='x', axis=1)
-        self.data['y'] = self.data.apply(get_point_coords, geom='geometry', coord_type='y', axis=1)
-        self.data = self.data.drop('geometry', axis=1).copy()
+        data['x'] = data.apply(get_point_coords, geom='geometry', coord_type='x', axis=1)
+        data['y'] = data.apply(get_point_coords, geom='geometry', coord_type='y', axis=1)
+        data = data.drop('geometry', axis=1).copy()
+
+        return data
 
     def create_map_bokeh_figure(self):
         """
@@ -184,7 +201,8 @@ class BokehMap:
             ('Adresse', '@result_label'),
             ('Nombre adresse', "@nb"),
             ('Type geocodage', '@result_type'),
-            ("Score de geocodage", "@result_score")
+            ("Score de geocodage", "@result_score"),
+            ("surface habitable (HLM)", "@SURFHAB")
         ]
         tile_provider = get_provider(Vendors.CARTODBPOSITRON)
         self.chart = figure(title=self.title, plot_width=800, plot_height=600, x_axis_type="mercator",
@@ -200,16 +218,22 @@ class BokehMap:
         self.chart.outline_line_alpha = 0.3
         self.chart.outline_line_color = "navy"
 
-
-
-    def Add_layer_to_map(self, fill_color, line_color):
+    def add_first_layer_to_map(self, fill_color, line_color):
         """ Add data in self.chart"""
         bokeh_data = ColumnDataSource(self.data)
         self.chart.circle('x', 'y', source=bokeh_data, fill_color=fill_color, line_color=line_color, size=10,
                           legend=self.data_name)
-
-
-    def run(self):
-        self.gdf_geometry_to_xy()
-        self.create_map_bokeh_figure()
         self.chart.legend.click_policy = "hide"
+
+    def init_map(self):
+        """ Execution of the different methods of the class """
+        self.data = self.gdf_geometry_to_xy(self.data)
+        self.create_map_bokeh_figure()
+
+
+def add_new_data_in_bokeh_map(data):
+
+    assert type(data) == gpd.geodataframe.GeoDataFrame, "input data for generation of Bokeh mapping"\
+                                                        "is not GeoDataFrame type"
+
+    pass

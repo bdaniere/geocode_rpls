@@ -114,9 +114,7 @@ class OsmBuilding(Building):
                                                                       footprint_type='building', timeout=600)
 
     def run(self):
-        """
-         Execution of the different methods of the class
-         """
+        """ Execution of the different methods of the class """
 
         self.recover_osm_area()
         self.recover_osm_building()
@@ -153,9 +151,7 @@ class ShpBuilding(Building):
             sys.exit()
 
     def run(self):
-        """
-         Execution of the different methods of the class
-         """
+        """ Execution of the different methods of the class """
         self.read_building_shp()
         self.formatting_and_exporting_data()
 
@@ -166,9 +162,7 @@ class PostGisBuilding(Building):
         Building.__init__(self)
 
     def run(self):
-        """
-         Execution of the different methods of the class
-         """
+        """ Execution of the different methods of the class """
 
         self.gdf_building = static_functions.import_table()
         self.formatting_and_exporting_data()
