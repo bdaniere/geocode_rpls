@@ -214,13 +214,17 @@ class GeocodeHlm:
     @staticmethod
     def formatting_geocoding_result(gdf_hlm):
         """
-        For the moment, just select columns to export
+        Select columns to export & drop geocoding error
 
         :param gdf_hlm: geopandas.GeoDataFrame with geocode HLM
         :return: geopandas.GeoDataFrame with selected columns
         """
 
         logging.info("Formatting data after geocoding")
+        # Deleting results that are not in the list of common codes (geocoding error)
+        gdf_hlm = gdf_hlm[gdf_hlm.result_citycode.isin(param["data"]["list_cod_insee"])]
+
+        # Drop some columns for export
         try:
             gdf_hlm = static_functions.drop_columns(gdf_hlm,
                                                     {'REG', 'DEP', 'LIBDEP', 'DEPCOM', 'CODEPOSTAL', 'LIBCOM',
@@ -232,6 +236,7 @@ class GeocodeHlm:
                                                      'LIEUDIT', 'QPV', 'SRU_EXPIR', 'SRU_ALINEA'})
         except ValueError as error:
             print error
+
 
         return gdf_hlm
 

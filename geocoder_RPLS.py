@@ -111,9 +111,17 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
 
     # Creation of Bokhe map with geocoding result
     synthesis_map = diagram_generator.BokehMap("Cartographie du géocodage", obj_geocoder.output_gdf,
-                                               u"résultat du géocodage")
+                                               u"Résultat du géocodage")
     synthesis_map.init_map()
     synthesis_map.add_first_layer_to_map("orange", "green")
+
+    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_geom_point,
+                                                "Centroide du HLM", "green", "orange")
+    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_connexion_line,
+                                                u"Connexion résultat - HLM", "green", "orange")
+    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_surf_geom ,
+                                                u"HLM détecté", "grey", "black")
+
 
     show(layout([[synthesis_chart.chart, correction_chart.chart, result_type_chart.chart], [result_score_chart.chart],
                  [synthesis_map.chart]], sizing_mode='stretch_width'))
