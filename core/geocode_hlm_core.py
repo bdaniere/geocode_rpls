@@ -217,7 +217,7 @@ class GeocodeHlm:
         Select columns to export & drop geocoding error
 
         :param gdf_hlm: geopandas.GeoDataFrame with geocode HLM
-        :return: geopandas.GeoDataFrame with selected columns
+        :return: geopandas.GeoDataFrame with selected columns without goecoding error
         """
 
         logging.info("Formatting data after geocoding")

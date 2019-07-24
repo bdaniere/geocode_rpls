@@ -105,7 +105,8 @@ def clean_gdf_by_geometry(gdf):
     logging.info("drop null & invalid & duplicate geometry \n")
 
     # reset index for avoid geometry series
-    gdf = gdf.reset_index()
+    if "id" not in gdf.columns:
+        gdf = gdf.reset_index()
 
     # Check geometry validity
     invalid_geometry = gdf[gdf.geometry.is_valid == False].count().max()
