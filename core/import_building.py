@@ -77,6 +77,7 @@ class Building:
             """
             Sub function allowing to isolate the small building (-30m²) and to determine those being
             contiguous or not to other building
+            merge small building contiguously geometry with the geometry of the nearest building
 
             :param gdf: self.gdf_building -- type : gpd.GeoDataFrame
             :return small_building: gpd.GeoDataFrame containing only buildings of less than 30m²
@@ -87,68 +88,42 @@ class Building:
             """
 
             logging.info(" -- Identification of small buildings")
+            gdf["neighbors"] = None
+            gdf["neighbors_geom"] = None
+            gdf["small_fusion"] = 0
             small_building = gdf[gdf.area * 10000000000 < 30]
-            small_building_contiguously = gpd.GeoDataFrame(columns=small_building.columns)
-            small_building_contiguously["joiner"] = 0
-            gdf["neighbors "] = None
+            temp_dict = {}
 
-            # import pdb
-            # pdb.set_trace()
-
+            # Find buildings neighbors for each building in small_building
             for index, row in gdf.iterrows():
-                neighbors = gdf[gdf.geometry.touches(row['geometry'])].id.tolist()
-                neighbors = neighbors.remove(row.id)
-                gdf.at[index, "neighbors"] = ", ".join(neighbors)
+                if index in set(small_building.index):
+                    # find buildings neighbors
+                    neighbors = gdf[gdf.geometry.touches(row['geometry'])].id.tolist()
 
-            import pdb
-            pdb.set_trace()
+                    # deletion of the current id if it is in the list (otherwise, exception handling)
+                    if row.id in neighbors :
+                        neighbors = neighbors.remove(row.id)
 
-            for small_index_building in small_building.index:
-                unitary_small_building = small_building.geometry[small_index_building]
-                max_contiguous_area = 0
+                    if len(neighbors) > 0:
+                        # recover the max area of neighbors buildings
+                        # biggest_neighbors = neighbors[max(enumerate([gdf.geometry[x].area for x in neighbors]))[0]]
+                        biggest_neighbors = max([[x, gdf.geometry[x].area] for x in neighbors], key=(lambda y: y[1]))[0]
 
-                for building_index in self.gdf_building.index:
-                    unitary_building = self.gdf_building.geometry[building_index]
+                        small_building.at[index, "neighbors"] = biggest_neighbors
+                        small_building.at[index, "neighbors_geom"] = gdf.geometry[biggest_neighbors]
 
-                    if small_index_building != building_index and unitary_small_building.touches(unitary_building):
-                        if unitary_building.area > max_contiguous_area:
-                            max_contiguous_area = unitary_building.area
-                            small_building_contiguously.loc[small_index_building] = small_building.loc[
-                                small_index_building]
-                            small_building_contiguously.loc[small_index_building, "joiner"] = int(building_index)
+                        gdf.at[biggest_neighbors, "geometry"] = gdf.at[biggest_neighbors, "geometry"].union(small_building.at[index, "geometry"])
+                        gdf = gdf.drop([index])
+                        gdf = gdf.dropna(subset=['geometry'])
 
-            isolated_small_building_index = set(small_building_contiguously.index).symmetric_difference(
-                small_building.index)
+                        # voir les cas ou le rattachement se fait su un small building ...
+                        # Voir également pour les batiments qui vont se toucher mais devenir des multipolygon
 
-            return small_building, small_building_contiguously, isolated_small_building_index
 
-        def merge_small_building(gdf, small_building_contiguously):
-            """
-            Sub function allowing to merge small building contiguously geometry with the geometry
-            of the nearest building (determined upstream)
+            small_building_contiguously = small_building[small_building.neighbors.notnull()]
+            isolated_small_building_index = set(small_building.index[small_building.neighbors.isnull()])
 
-            :param gdf: self.gdf_building -- type : gpd.GeoDataFrame without -30m² buildings
-            :param small_building_contiguously: gpd.GeoDataFrame containing only buildings of
-                   less than 30m² contiguous to a larger building
-            :return:
-            """
-
-            logging.info(" -- Merge small building contiguously with the nearest building ")
-
-            for small_building_index in small_building_contiguously.index:
-                try:
-                    add_index_geometry = small_building_contiguously.joiner[small_building_index]
-                    gdf.loc[small_building_index, "geometry"] = small_building_contiguously.geometry[
-                        small_building_index].union(gdf.geometry[add_index_geometry])
-                    if add_index_geometry in small_building_contiguously.index:
-                        small_building_contiguously.drop([add_index_geometry])
-
-                except (ValueError, KeyError, AttributeError) as union_error:
-                    # Avoid error if need to join two small buildings
-                    pass
-
-            gdf = gdf.dropna(subset=['geometry'])
-            return gdf
+            return gdf, small_building, small_building_contiguously, isolated_small_building_index
 
         def drop_isolated_small_building(gdf, drop_index):
             """
@@ -165,14 +140,12 @@ class Building:
 
             return gdf
 
-        small_buildings, small_buildings_contiguously, isolated_index = contiguous_small_building_contiguous(
+        gdf, small_buildings, small_buildings_contiguously, isolated_index = contiguous_small_building_contiguous(
             self.gdf_building)
-        self.gdf_building = merge_small_building(self.gdf_building, small_buildings_contiguously)
-        self.gdf_building = drop_isolated_small_building(self.gdf_building, isolated_index)
+        self.gdf_building = drop_isolated_small_building(gdf, isolated_index)
 
         self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
-        import pdb
-        pdb.set_trace()
+
 
 
 class OsmBuilding(Building):
