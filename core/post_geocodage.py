@@ -14,7 +14,7 @@ import pandas as pd
 from shapely.geometry import LineString
 from shapely.ops import nearest_points
 
-import static_functions
+from core import static_functions
 
 """
 Globals variables 

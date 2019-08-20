@@ -1,0 +1,11 @@
+*.xml
+*.iml
+*.pyc
+*.cpg
+*.dbf
+*.prj
+*.qpj
+*.shp
+*.shx
+input_data/
+.idea/.gitignore

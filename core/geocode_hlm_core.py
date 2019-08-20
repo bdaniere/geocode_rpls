@@ -13,7 +13,7 @@ import os
 import geopandas as gpd
 import pandas as pd
 
-import static_functions
+from core import static_functions
 
 """
 Globals variables 
@@ -46,7 +46,13 @@ class GeocodeHlm:
 
         # Read RPLS csv file
         assert param["data"]["csv_hlm"].split('.')[-1] == "csv", "the value of the key 'csv_hlm' must be a csv file"
-        self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';')
+
+        try:
+            self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';', encoding='utf-8')
+        except UnicodeDecodeError:
+            self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';', encoding='latin-1')
+            logging.error("Impossible to read csv with utf-8 encoding - Use Latin-1")
+
         self.df_hlm = self.df_hlm[self.df_hlm.DEPCOM.isin(param["data"]["list_cod_insee"])]
         self.dict_count_entity["count init adress"] = self.df_hlm.count().max()
 
@@ -235,8 +241,7 @@ class GeocodeHlm:
                                                      'COMPLGEO',
                                                      'LIEUDIT', 'QPV', 'SRU_EXPIR', 'SRU_ALINEA'})
         except ValueError as error:
-            print error
-
+            print(error)
 
         return gdf_hlm
 

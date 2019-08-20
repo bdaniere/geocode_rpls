@@ -15,7 +15,7 @@ import geopandas as gpd
 import osmnx as ox
 import requests
 
-import static_functions
+from core import static_functions
 
 """
 Globals variables 
@@ -101,7 +101,7 @@ class Building:
                     neighbors = gdf[gdf.geometry.touches(row['geometry'])].id.tolist()
 
                     # deletion of the current id if it is in the list (otherwise, exception handling)
-                    if row.id in neighbors :
+                    if row.id in neighbors:
                         neighbors = neighbors.remove(row.id)
 
                     if len(neighbors) > 0:
@@ -112,13 +112,13 @@ class Building:
                         small_building.at[index, "neighbors"] = biggest_neighbors
                         small_building.at[index, "neighbors_geom"] = gdf.geometry[biggest_neighbors]
 
-                        gdf.at[biggest_neighbors, "geometry"] = gdf.at[biggest_neighbors, "geometry"].union(small_building.at[index, "geometry"])
+                        gdf.at[biggest_neighbors, "geometry"] = gdf.at[biggest_neighbors, "geometry"].union(
+                            small_building.at[index, "geometry"])
                         gdf = gdf.drop([index])
                         gdf = gdf.dropna(subset=['geometry'])
 
                         # voir les cas ou le rattachement se fait su un small building ...
                         # Voir également pour les batiments qui vont se toucher mais devenir des multipolygon
-
 
             small_building_contiguously = small_building[small_building.neighbors.notnull()]
             isolated_small_building_index = set(small_building.index[small_building.neighbors.isnull()])
@@ -145,7 +145,7 @@ class Building:
         self.gdf_building = drop_isolated_small_building(gdf, isolated_index)
 
         self.gdf_building = static_functions.clean_gdf_by_geometry(self.gdf_building)
-
+        self.gdf_building = self.gdf_building[["id", "geometry"]]
 
 
 class OsmBuilding(Building):
@@ -226,8 +226,8 @@ class ShpBuilding(Building):
 
         try:
             self.gdf_building = gpd.read_file(self.gdf_path)
-            self.gdf_building.crs = {"init": "epsg :" + str(self.gdf_epsg)}
-            self.gdf_building = self.gdf_building.to_crs({"init": "epsg :4326"})
+            self.gdf_building.crs = {"init": "epsg:" + str(self.gdf_epsg)}
+            self.gdf_building = self.gdf_building.to_crs({"init": "epsg:4326"})
 
         except IOError as ioe:
             logging.warning(ioe)
