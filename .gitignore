@@ -1,0 +1,14 @@
+*.xml
+*.iml
+*.pyc
+*.cpg
+*.dbf
+*.prj
+*.qpj
+*.shp
+*.shx
+input_data/
+.idea/.gitignore
+output/layout_grid.html
+output/result_geocoding.csv
+

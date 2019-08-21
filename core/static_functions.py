@@ -10,6 +10,7 @@ import json
 import logging
 import subprocess
 import sys
+import os
 
 import geopandas as gpd
 import numpy as np
@@ -53,6 +54,9 @@ def import_table():
     gdf.crs = {'init': 'epsg:' + str(param["data"]["if_postgis"]["epsg"])}
     gdf = gdf.to_crs({"init": "epsg :4326"})
 
+    if gdf.geometry.name == 'geom':
+        gdf = gdf.rename(columns={"geom": "geometry"})
+
     assert type(gdf) == gpd.geodataframe.GeoDataFrame, "the output file in not a GeoDataFrame"
     return gdf
 
@@ -72,9 +76,10 @@ def formatting_gdf_for_shp_export(gdf, output_path_and_name):
 
     for gdf_column in gdf.columns:
         # Easy way : replace all accent
-        if type(gdf[gdf_column].max()) in [str, unicode]:
+        if type(gdf[gdf_column][gdf.index.min()] )in [str]:
             gdf[gdf_column] = gdf[gdf_column].str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode(
                 'utf-8')
+
 
         # change type to str if
         if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
@@ -102,7 +107,8 @@ def clean_gdf_by_geometry(gdf):
     logging.info("drop null & invalid & duplicate geometry \n")
 
     # reset index for avoid geometry series
-    gdf = gdf.reset_index()
+    if "id" not in gdf.columns:
+        gdf = gdf.reset_index()
 
     # Check geometry validity
     invalid_geometry = gdf[gdf.geometry.is_valid == False].count().max()
@@ -142,16 +148,25 @@ def geocode_with_api(ch_output, ch_dir):
 
     logging.info("START geocoding \n")
 
-    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM  https://api-adresse.data.gouv.fr/search/csv/".format(
-        ch_output + "/RPLS_correct.csv")
+    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F " \
+                  "columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM " \
+                  "https://api-adresse.data.gouv.fr/search/csv/".format(ch_output + "RPLS_correct.csv")
 
-    result_geocoding = subprocess.check_output(geocode_rqt)
-    result_geocoding = result_geocoding.decode('utf_8_sig')
-    result_geocoding = result_geocoding.encode('utf_8_sig')
+    # Execute request to API according to the user OS (MAC is not supported)
+    if sys.platform == 'win32':
+        result_geocoding = subprocess.check_output(geocode_rqt)
+        result_geocoding = result_geocoding.decode('utf_8_sig')
+        result_geocoding = result_geocoding.encode('utf_8_sig')
 
-    with open('output/result_geocoding.csv', "w") as output_csv:
-        output_csv.write(result_geocoding)
-    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';')
+        with open('output/result_geocoding.csv', "w") as output_csv:
+            output_csv.write(result_geocoding)
+
+    elif sys.platform == 'linux':
+        result_geocoding = os.system(geocode_rqt + " > output/result_geocoding.csv")
+    else:
+        raise OSError('Your OS is not supported')
+
+    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';', encoding="utf-8")
 
     try:
         logging.info("END geocoding : {} result \n".format(df_hlm.REG.count()))
