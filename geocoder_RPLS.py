@@ -115,7 +115,7 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
     synthesis_map.init_map()
     synthesis_map.add_first_layer_to_map("orange", "green")
 
-    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_surf_geom ,
+    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_surf_geom,
                                                 u"Emprise des HLM", "grey", "black")
     diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_connexion_line,
                                                 u"Connexion résultat - HLM", "green", "orange")
@@ -124,19 +124,24 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
                  [synthesis_map.chart]], sizing_mode='stretch_width'))
 
 
+def main():
+    # Read / recover building
+    main_building_process = init_building_gdf()
+
+    # Read & geocode RLPS
+    hlm = geocode_hlm_core.GeocodeHlm(main_building_process.gdf_building)
+    hlm.run()
+
+    post_geocoding = post_geocodage.PostGeocodeData(hlm.output_gdf, main_building_process.gdf_building)
+    post_geocoding.run()
+
+    # Generate dashboard
+    generate_dashboard_indicator(hlm, post_geocoding)
+
+
 """
 PROCESS
 """
+if __name__ == "__main__":
+    main()
 
-# Read / recover building
-main_building_process = init_building_gdf()
-
-# Read & geocode RLPS
-hlm = geocode_hlm_core.GeocodeHlm(main_building_process.gdf_building)
-hlm.run()
-
-post_geocoding = post_geocodage.PostGeocodeData(hlm.output_gdf, main_building_process.gdf_building)
-post_geocoding.run()
-
-# Generate dashboard
-generate_dashboard_indicator(hlm, post_geocoding)
