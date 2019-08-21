@@ -76,9 +76,10 @@ def formatting_gdf_for_shp_export(gdf, output_path_and_name):
 
     for gdf_column in gdf.columns:
         # Easy way : replace all accent
-        if type(gdf[gdf_column].max()) in [str, unicode]:
+        if type(gdf[gdf_column][gdf.index.min()] )in [str]:
             gdf[gdf_column] = gdf[gdf_column].str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode(
                 'utf-8')
+
 
         # change type to str if
         if type(gdf[gdf_column][gdf.index.min()]) == np.bool_:
