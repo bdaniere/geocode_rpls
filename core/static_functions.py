@@ -10,6 +10,7 @@ import json
 import logging
 import subprocess
 import sys
+import os
 
 import geopandas as gpd
 import numpy as np
@@ -146,16 +147,25 @@ def geocode_with_api(ch_output, ch_dir):
 
     logging.info("START geocoding \n")
 
-    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM  https://api-adresse.data.gouv.fr/search/csv/".format(
-        ch_output + "/RPLS_correct.csv")
+    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F " \
+                  "columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM " \
+                  "https://api-adresse.data.gouv.fr/search/csv/".format(ch_output + "RPLS_correct.csv")
 
-    result_geocoding = subprocess.check_output(geocode_rqt)
-    result_geocoding = result_geocoding.decode('utf_8_sig')
-    result_geocoding = result_geocoding.encode('utf_8_sig')
+    # Execute request to API according to the user OS (MAC is not supported)
+    if sys.platform == 'win32':
+        result_geocoding = subprocess.check_output(geocode_rqt)
+        result_geocoding = result_geocoding.decode('utf_8_sig')
+        result_geocoding = result_geocoding.encode('utf_8_sig')
 
-    with open('output/result_geocoding.csv', "w") as output_csv:
-        output_csv.write(result_geocoding)
-    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';')
+        with open('output/result_geocoding.csv', "w") as output_csv:
+            output_csv.write(result_geocoding)
+
+    elif sys.platform == 'linux':
+        result_geocoding = os.system(geocode_rqt + " > output/result_geocoding.csv")
+    else:
+        raise OSError('Your OS is not supported')
+
+    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';', encoding="utf-8")
 
     try:
         logging.info("END geocoding : {} result \n".format(df_hlm.REG.count()))
