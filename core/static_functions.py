@@ -10,20 +10,34 @@ import json
 import logging
 import subprocess
 import sys
+import os
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 from sqlalchemy import create_engine
+import argparse
 
 """
 Globals variables 
 """
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("json_file", help=" Input parameter json file path")
+    parser.add_argument("-b", "--building", help="Input building data type : osm / postgis / shp")
+
+    assert parser.parse_args().building in ['osm', 'postgis', 'shp'], "--building parameter must be shp, postgis or osm"
+
+    return parser.parse_args()
+
+
 # lecture du json
-json_param = open("param.json")
+arg = parse_arguments()
+json_param = open(arg.json_file)
 param = json.load(json_param)
 
 """
@@ -62,7 +76,6 @@ def import_table():
 
 def formatting_gdf_for_shp_export(gdf, output_path_and_name):
     """ Formatting GeoDataFrame for export & export to shp
-
      :type gdf: GeoDataFrame
      :param output_path_and_name: path and name for the output shp
      """
@@ -75,7 +88,7 @@ def formatting_gdf_for_shp_export(gdf, output_path_and_name):
 
     for gdf_column in gdf.columns:
         # Easy way : replace all accent
-        if type(gdf[gdf_column].max()) in [str, unicode]:
+        if type(gdf[gdf_column][gdf.index.min()]) in [str]:
             gdf[gdf_column] = gdf[gdf_column].str.normalize('NFKD').str.encode('ascii', errors='ignore').str.decode(
                 'utf-8')
 
@@ -140,22 +153,30 @@ def geocode_with_api(ch_output, ch_dir):
     """
     Geocoding of HLMs from the corrected csv, by use of the api of the French government
     https://api-adresse.data.gouv.fr
-
     :return: pandas.DataFrame with latitude and longitude information
     """
 
     logging.info("START geocoding \n")
 
-    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM  https://api-adresse.data.gouv.fr/search/csv/".format(
-        ch_output + "/RPLS_correct.csv")
+    geocode_rqt = "curl -X POST -F data=@{} -F columns=NUMVOIE -F columns=INDREP -F columns=TYPVOIE -F " \
+                  "columns=NOMVOIE -F columns=CODEPOSTAL -F columns=LIBCOM " \
+                  "https://api-adresse.data.gouv.fr/search/csv/".format(ch_output + "RPLS_correct.csv")
 
-    result_geocoding = subprocess.check_output(geocode_rqt)
-    result_geocoding = result_geocoding.decode('utf_8_sig')
-    result_geocoding = result_geocoding.encode('utf_8_sig')
+    # Execute request to API according to the user OS (MAC is not supported)
+    if sys.platform == 'win32':
+        result_geocoding = subprocess.check_output(geocode_rqt)
+        result_geocoding = result_geocoding.decode('utf_8_sig')
+        result_geocoding = result_geocoding.encode('utf_8_sig')
 
-    with open('output/result_geocoding.csv', "w") as output_csv:
-        output_csv.write(result_geocoding)
-    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';')
+        with open('output/result_geocoding.csv', "w") as output_csv:
+            output_csv.write(result_geocoding)
+
+    elif sys.platform == 'linux':
+        result_geocoding = os.system(geocode_rqt + " > output/result_geocoding.csv")
+    else:
+        raise OSError('Your OS is not supported')
+
+    df_hlm = pd.read_csv(ch_dir + "/output/result_geocoding.csv", sep=';', encoding="utf-8")
 
     try:
         logging.info("END geocoding : {} result \n".format(df_hlm.REG.count()))

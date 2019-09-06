@@ -19,7 +19,8 @@ from core import static_functions
 Globals variables 
 """
 # lecture du json
-json_param = open("param.json")
+arg = static_functions.parse_arguments()
+json_param = open(arg.json_file)
 param = json.load(json_param)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')

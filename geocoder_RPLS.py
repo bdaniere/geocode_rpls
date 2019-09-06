@@ -13,12 +13,12 @@ import sys
 
 from bokeh.layouts import layout
 from bokeh.plotting import output_file, show
-import argparse
 
 from core import diagram_generator
 from core import geocode_hlm_core
 from core import import_building
 from core import post_geocodage
+from core import static_functions
 
 """
 Globals variables 
@@ -28,17 +28,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- 
 ch_dir = os.getcwd().replace('\\', '/')
 ch_output = ch_dir + "/output/"
 
+
 """ Classes / methods / functions """
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("json_file", help=" Input parameter json file path")
-    parser.add_argument("-b", "--building", help="Input building data type : osm / postgis / shp")
-
-    assert parser.parse_args().building in ['osm', 'postgis', 'shp'], "--building parameter must be shp, postgis or osm"
-
-    return parser.parse_args()
 
 
 def init_building_gdf(building_choise):
@@ -136,7 +127,7 @@ def main():
     # recover argparse parameter
 
     # lecture du json
-    arg = parse_arguments()
+    arg = static_functions.parse_arguments()
 
     json_param = open(arg.json_file)
     param = json.load(json_param)
