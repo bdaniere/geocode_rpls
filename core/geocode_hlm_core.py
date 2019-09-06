@@ -12,6 +12,8 @@ import os
 
 import geopandas as gpd
 import pandas as pd
+from tkinter import *
+from tkinter.filedialog import askopenfilename
 
 from core import static_functions
 
@@ -46,12 +48,12 @@ class GeocodeHlm:
         self.output_gdf = gpd.GeoDataFrame()
 
         # Read RPLS csv file
-        assert param["data"]["csv_hlm"].split('.')[-1] == "csv", "the value of the key 'csv_hlm' must be a csv file"
+        rpls_path = askopenfilename(title="Open RLPS file", filetypes=[("csv", ".csv")], multiple=False)
 
         try:
-            self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';', encoding='utf-8')
+            self.df_hlm = pd.read_csv(rpls_path, sep=';', encoding='utf-8')
         except UnicodeDecodeError:
-            self.df_hlm = pd.read_csv(param["data"]["csv_hlm"], sep=';', encoding='latin-1')
+            self.df_hlm = pd.read_csv(rpls_path, sep=';', encoding='latin-1')
             logging.error("Impossible to read csv with utf-8 encoding - Use Latin-1")
 
         self.df_hlm = self.df_hlm[self.df_hlm.DEPCOM.isin(param["data"]["list_cod_insee"])]

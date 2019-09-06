@@ -124,11 +124,9 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
 
 
 def main():
-    # recover argparse parameter
 
-    # lecture du json
+    # Read Json parameter with ArgParse argument
     arg = static_functions.parse_arguments()
-
     json_param = open(arg.json_file)
     param = json.load(json_param)
 

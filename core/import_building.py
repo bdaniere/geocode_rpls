@@ -66,7 +66,7 @@ class Building:
         self.gdf_building = self.gdf_building[['id', 'geometry']]
 
         # export data to shp
-        if param["data"]["osm_shp_postgis_building"] == "osm":
+        if arg.building == "osm":
             static_functions.formatting_gdf_for_shp_export(self.gdf_building, ch_output + 'building_osm.shp')
 
     def process_small_building(self):
