@@ -42,6 +42,17 @@ Le fichier param.json permet à l'utilisateur de définir les différents param�
 
 Comment lancer l'outil ?     
      
-     python geocode_RPLS.py
+     python geocode_RPLS.py param.json -b [osm/postgis/shp]
+
+Les paramètres utilisables sont les suivants :
+
+positional arguments:
+  json_file             		Input parameter json file path
+  -b BUILDING, --building BUILDING	Input building data type : osm / postgis / shp
+
+optional arguments:
+  -h, --help            		show this help message and exit
+
+
      
 Les résultats des traitements seront disponible dans le sous-dossier "output" du projet

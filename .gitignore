@@ -9,3 +9,5 @@
 *.shx
 input_data/
 .idea/.gitignore
+output/result_geocoding.csv
+output/layout_grid.html

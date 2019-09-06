@@ -13,6 +13,7 @@ import sys
 
 from bokeh.layouts import layout
 from bokeh.plotting import output_file, show
+import argparse
 
 from core import diagram_generator
 from core import geocode_hlm_core
@@ -22,9 +23,6 @@ from core import post_geocodage
 """
 Globals variables 
 """
-# lecture du json
-json_param = open("param.json")
-param = json.load(json_param)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 ch_dir = os.getcwd().replace('\\', '/')
@@ -33,7 +31,17 @@ ch_output = ch_dir + "/output/"
 """ Classes / methods / functions """
 
 
-def init_building_gdf():
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("json_file", help=" Input parameter json file path")
+    parser.add_argument("-b", "--building", help="Input building data type : osm / postgis / shp")
+
+    assert parser.parse_args().building in ['osm', 'postgis', 'shp'], "--building parameter must be shp, postgis or osm"
+
+    return parser.parse_args()
+
+
+def init_building_gdf(building_choise):
     """
     Creation of building GeoDataFrame :
     Read the user choice and import building data
@@ -44,19 +52,19 @@ def init_building_gdf():
     :return: building GeoDataFrame (epsg : 4326)
     """
     # Process building with shp
-    if param["data"]["osm_shp_postgis_building"] == "shp":
+    if building_choise == "shp":
         logging.info("Start process with specified building shapefile")
         building_process = import_building.ShpBuilding()
         building_process.run()
 
     # Process building with OSM
-    elif param["data"]["osm_shp_postgis_building"] == "osm":
+    elif building_choise == "osm":
         logging.info("Start process with osm building")
         building_process = import_building.OsmBuilding()
         building_process.run()
 
     # Process building with Postgis Table
-    elif param["data"]["osm_shp_postgis_building"] == "postgis":
+    elif building_choise == "postgis":
         logging.info("Start process with specified PostGis building Table")
         building_process = import_building.PostGisBuilding()
         building_process.run()
@@ -115,7 +123,7 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
     synthesis_map.init_map()
     synthesis_map.add_first_layer_to_map("orange", "green")
 
-    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_surf_geom ,
+    diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_surf_geom,
                                                 u"Emprise des HLM", "grey", "black")
     diagram_generator.add_new_data_in_bokeh_map(synthesis_map, obj_post_geocoder.gdf_connexion_line,
                                                 u"Connexion résultat - HLM", "green", "orange")
@@ -124,19 +132,32 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
                  [synthesis_map.chart]], sizing_mode='stretch_width'))
 
 
+def main():
+    # recover argparse parameter
+
+    # lecture du json
+    arg = parse_arguments()
+
+    json_param = open(arg.json_file)
+    param = json.load(json_param)
+
+    # Read / recover building
+    main_building_process = init_building_gdf(arg.building)
+
+    # Read & geocode RLPS
+    hlm = geocode_hlm_core.GeocodeHlm(main_building_process.gdf_building)
+    hlm.run()
+
+    post_geocoding = post_geocodage.PostGeocodeData(hlm.output_gdf, main_building_process.gdf_building)
+    post_geocoding.run()
+
+    # Generate dashboard
+    generate_dashboard_indicator(hlm, post_geocoding)
+
+
 """
 PROCESS
 """
 
-# Read / recover building
-main_building_process = init_building_gdf()
-
-# Read & geocode RLPS
-hlm = geocode_hlm_core.GeocodeHlm(main_building_process.gdf_building)
-hlm.run()
-
-post_geocoding = post_geocodage.PostGeocodeData(hlm.output_gdf, main_building_process.gdf_building)
-post_geocoding.run()
-
-# Generate dashboard
-generate_dashboard_indicator(hlm, post_geocoding)
+if __name__ == "__main__":
+    main()

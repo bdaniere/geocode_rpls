@@ -14,6 +14,8 @@ import sys
 import geopandas as gpd
 import osmnx as ox
 import requests
+from tkinter import *
+from tkinter.filedialog import askopenfilename
 
 from core import static_functions
 
@@ -213,7 +215,6 @@ class ShpBuilding(Building):
         """
 
         Building.__init__(self)
-        self.gdf_path = param["data"]["if_shp"]["shp_building"]
         self.gdf_epsg = param["data"]["if_shp"]["shp_building_epsg"]
 
     def read_building_shp(self):
@@ -221,11 +222,11 @@ class ShpBuilding(Building):
         Read shapefile and transform to GeoDataFrame
         :return: Building GeoDataFrame (epsg: 4326)
         """
-        logging.info("-- Read shp : " + self.gdf_path.split('/')[-1])
-        assert self.gdf_path.split('.')[-1] == 'shp', "the value of the key 'shp_building' must be a shapeflie"
+        logging.info("-- Read building shapefile ")
+        gdf_path = askopenfilename(title="Open building shapefile", filetypes=[("Shapefile", ".shp")], multiple=False)
 
         try:
-            self.gdf_building = gpd.read_file(self.gdf_path)
+            self.gdf_building = gpd.read_file(gdf_path)
             self.gdf_building.crs = {"init": "epsg:" + str(self.gdf_epsg)}
             self.gdf_building = self.gdf_building.to_crs({"init": "epsg:4326"})
 
