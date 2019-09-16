@@ -28,7 +28,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s -- %(levelname)s -- 
 ch_dir = os.getcwd().replace('\\', '/')
 ch_output = ch_dir + "/output/"
 
-
 """ Classes / methods / functions """
 
 
@@ -124,7 +123,6 @@ def generate_dashboard_indicator(obj_geocoder, obj_post_geocoder):
 
 
 def main():
-
     # Read Json parameter with ArgParse argument
     arg = static_functions.parse_arguments()
     json_param = open(arg.json_file)

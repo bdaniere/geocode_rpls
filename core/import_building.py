@@ -71,7 +71,7 @@ class Building:
 
     def process_small_building(self):
         """
-        Class method for merge small building (area < 30 m²) with the nearest adjoining building
+        Class method for merge small building (area < arg.merge m²) with the nearest adjoining building
         Else, remove isolated small buidling
         """
 
@@ -79,23 +79,23 @@ class Building:
 
         def contiguous_small_building_contiguous(gdf):
             """
-            Sub function allowing to isolate the small building (-30m²) and to determine those being
+            Sub function allowing to isolate the small building (-arg.merge m²) and to determine those being
             contiguous or not to other building
             merge small building contiguously geometry with the geometry of the nearest building
 
             :param gdf: self.gdf_building -- type : gpd.GeoDataFrame
-            :return small_building: gpd.GeoDataFrame containing only buildings of less than 30m²
+            :return small_building: gpd.GeoDataFrame containing only buildings of less than arg.merge m²
             :return small_building_contiguously: gpd.GeoDataFrame containing only buildings of
-                    less than 30m² contiguous to a larger building
+                    less than arg.merge m² contiguous to a larger building
             :return isolated_small_building_index: set containing only index buildings of
-                    less than 30m² not adjacent to a building
+                    less than arg.merge m² not adjacent to a building
             """
 
             logging.info(" -- Identification of small buildings")
             gdf["neighbors"] = None
             gdf["neighbors_geom"] = None
             gdf["small_fusion"] = 0
-            small_building = gdf[gdf.area * 10000000000 < 30]
+            small_building = gdf[gdf.area * 10000000000 < int(arg.merge)]
             temp_dict = {}
 
             # Find buildings neighbors for each building in small_building
@@ -131,11 +131,11 @@ class Building:
 
         def drop_isolated_small_building(gdf, drop_index):
             """
-            Drop row (building) with an area of ​​less than 30m² and not contiguous to another building
+            Drop row (building) with an area of ​​less than arg.merge m² and not contiguous to another building
 
             :param gdf: self.gdf_building -- type : gpd.GeoDataFrame
-            :param drop_index: set containing only index buildings of less than 30m² not adjacent to a building
-            :return: self.gdf_building -- type : gpd.GeoDataFrame without -30m² buildings
+            :param drop_index: set containing only index buildings of less than arg.merge m² not adjacent to a building
+            :return: self.gdf_building -- type : gpd.GeoDataFrame without - arg.merge m² buildings
             """
 
             logging.info(" -- Drop isolated small building")
@@ -205,7 +205,8 @@ class OsmBuilding(Building):
         self.recover_osm_area()
         self.recover_osm_building()
         self.formatting_and_exporting_data()
-        self.process_small_building()
+        if arg.merge != None:
+            self.process_small_building()
 
 
 class ShpBuilding(Building):
@@ -240,7 +241,8 @@ class ShpBuilding(Building):
         """ Execution of the different methods of the class """
         self.read_building_shp()
         self.formatting_and_exporting_data()
-        self.process_small_building()
+        if arg.merge != None:
+            self.process_small_building()
 
 
 class PostGisBuilding(Building):
@@ -253,4 +255,5 @@ class PostGisBuilding(Building):
 
         self.gdf_building = static_functions.import_table()
         self.formatting_and_exporting_data()
-        self.process_small_building()
+        if arg.merge != None:
+            self.process_small_building()

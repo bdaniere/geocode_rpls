@@ -29,8 +29,15 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("json_file", help=" Input parameter json file path")
     parser.add_argument("-b", "--building", help="Input building data type : osm / postgis / shp")
+    parser.add_argument("-m", "--merge", help="Allows suppression or fusion (depending on the contiguity or not)" \
+                                              "of buildings of less than x m² (x = integer)")
 
     assert parser.parse_args().building in ['osm', 'postgis', 'shp'], "--building parameter must be shp, postgis or osm"
+    if parser.parse_args().merge != None:
+        try:
+            int(parser.parse_args().merge)
+        except ValueError:
+            raise ValueError("--merge parameter must be a integer")
 
     return parser.parse_args()
 

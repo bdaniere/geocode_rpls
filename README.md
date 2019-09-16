@@ -10,8 +10,6 @@ Dans un premier temps, cet outil permet le chargement de données géographique 
      - via la lecture d'une table Postgis
      - via la récupération de l'information depuis le serveur d’OpenStreetMap (Sachant que la récupération d'un territoire important est assez chronophage)
     
-(Actuellement, cette donnée n'est pas utilisée - des fonctionnalités complémentaires sont en cours de développement pour rattacher ces adresses aux bâtiments les plus proches, selon certaines conditions)
-
 Dans un second temps, l'outil permet de traiter un fichier RPLS (au format csv) :
      - Lecture et filtre d'un fichier RLPS au format csv
      - Prétraitements pour améliorer la qualité des données a géocoder
@@ -51,6 +49,7 @@ positional arguments:
   -b BUILDING, --building BUILDING	Input building data type : osm / postgis / shp
 
 optional arguments:
+  -m, --merge                   Allows suppression or fusion (depending on the contiguity or not) of buildings of less than x m² (x = integer)
   -h, --help            		show this help message and exit
 
 

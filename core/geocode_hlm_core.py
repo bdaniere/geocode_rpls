@@ -12,7 +12,6 @@ import os
 
 import geopandas as gpd
 import pandas as pd
-from tkinter import *
 from tkinter.filedialog import askopenfilename
 
 from core import static_functions
