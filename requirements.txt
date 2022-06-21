@@ -3,7 +3,7 @@ geopandas == 0.3.0
 bokeh == 1.2.0
 osmx == 0.10
 requests == 2.21.0
-numpy == 1.13.3
+numpy == 1.22.0
 shapely == 1.6.4
 request == 2.21.0
 sqlalchemy == 1.2.11
